@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+import sys
+import os
+
+def print_tm_geom(atom_list):
+	s = 1.0/0.52917721092 # convert units (a.u. to angstrom)
+	for line in atom_list:
+		# get rid of empty entries (spaces)
+		coords = filter(None, line.split(' '))
+		# print to "coord" file
+		print >> coordFile, "%20.14f%20.14f%20.14f%7s" % (float(coords[1])*s, float(coords[2])*s, float(coords[3])*s, coords[0])
+
+# get input information
+inputFile = "define.in"
+xyzFile = raw_input("Enter xyz coordinate file: ")
+basis = raw_input("Enter basis set: ")
+method = raw_input("Enter method (dft or scf): ")
+functional = raw_input("Enter functional: ")
+jobex = raw_input("Geometry relaxation? <yes or no>")
+
+# get coordinates of xyz file and convert them to tmol coord file
+atom_list = []
+natoms = 0
+xyz_file = open(xyzFile, 'r').read()
+
+for i, line in enumerate(xyz_file.split('\n')):
+	if i == 0:
+		natoms=int(line)
+
+	elif i == 1:
+		pass
+
+	elif i > 1 and i <= natoms + 2:
+		atom_list.append(line)
+
+# delete last entry (empty)
+del atom_list[-1]
+
+# write to file (coord)
+coordFile = open("coord", 'w')
+coordFile.write("$coord\n")
+print_tm_geom(atom_list) # call print function
+coordFile.close()
+
+# write define input file
+define_in = open(inputFile, 'w')
+if (basis == "\n"):
+	define_in.write("\ntitel\na coord\ny\ndesy\nired\n*\n*\neht\n\n\n\n")
+else:
+	define_in.write("\ntitel\na coord\ny\ndesy\nired\n*" + basis + "\n*\neht\n\n\n\n")
+
+# ridft calculation
+if (method == "dft"):
+	define_in.write("dft\non\nfunc " + functional + "*\nri\non\n*\n*\n")
+	define_in.close()
+
+	os.system("define < " + inputFile)
+	if (jobex == "yes"):
+		os.system("jobex -ri > jobex.out")
+	else:
+		os.system("ridft > ridft.out")
+
+# dscf calculation
+if (method == "scf"):
+	define_in.write("*\n")
+	define_in.close()
+
+	os.system("define < " + inputFile)
+	os.system("dscf > dscf.out")
